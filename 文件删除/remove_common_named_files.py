@@ -1,6 +1,12 @@
 import os
 import argparse
 
+"""
+代码运行示例:
+python remove_common_named_files.py \
+    --folder_list_A /home/mao/datasets/小码定位/最新训练样本/train/images \
+    --folder_list_B /home/mao/datasets/小码定位/最新训练样本/样本分类结果/1-tinyNum-Arc
+"""
 
 class FileHandler:
     def __init__(self):

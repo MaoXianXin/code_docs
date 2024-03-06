@@ -2,6 +2,13 @@ import os
 import argparse
 import shutil
 
+"""
+代码运行示例:
+python copy_common_named_files.py \
+    --folder_list_A /home/mao/datasets/小码定位/最新训练样本/train/xmls \
+    --folder_list_B /home/mao/datasets/小码定位/最新训练样本/train/images/ \
+    --target_path /home/mao/datasets/小码定位/最新训练样本/train/images/
+"""
 
 class FileHandler:
     def __init__(self):

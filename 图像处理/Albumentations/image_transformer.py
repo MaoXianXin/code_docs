@@ -4,6 +4,15 @@ import albumentations as A
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 
+"""
+代码运行示例:
+python image_transformer.py \
+    --source_dir /home/mao/datasets/固定版面清分子图Mask/固定版面清分-调整标注后-表格框/数据裁切-Mask/origin-jpg \
+    --target_dir /home/mao/datasets/固定版面清分子图Mask/固定版面清分-调整标注后-表格框/数据裁切-Mask/origin-jpg_processed \
+    --max_size 512 \
+    --threads 4
+"""
+
 def get_image_transformations(max_size=640):
     """Return a composed transformation."""
     return A.Compose([
