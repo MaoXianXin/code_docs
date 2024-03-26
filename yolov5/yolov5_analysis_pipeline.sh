@@ -3,18 +3,24 @@
 # 遇到任何错误时立即退出
 set -e
 
-# 定义公共参数
-PROCESS_NAME="data_analysis"
-PREDEFINE_CLASSES_PATH="/home/mao/datasets/支票要素定位/predefine_classes.txt"
-WEIGHTS_PATH="/home/mao/workspace/yolov5/runs/train/exp94/weights/best.pt"
-SOURCE_PATH="/home/mao/datasets/支票要素定位/有效样本-裁剪子图/all-支票-现金支票-转账支票-filterBySimilarity"
-IMG_SIZE=640
-CONF_THRES=0.7
+# 加载配置文件（假设配置文件名为config.sh，位于脚本同级目录）
+CONFIG_FILE="$(dirname "\$0")/config.sh"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "配置文件不存在: $CONFIG_FILE"
+    exit 1
+fi
+source $CONFIG_FILE
+
+# 定义路径
+PREDEFINE_CLASSES_PATH="$DATASETS_PATH/支票要素定位/predefine_classes.txt"
+WEIGHTS_PATH="$WORKSPACE_PATH/yolov5/runs/train/exp94/weights/best.pt"
+SOURCE_PATH="$DATASETS_PATH/支票要素定位/有效样本-裁剪子图/测试"
 
 # 定义需要检查的类别列表
 CATEGORIES="--categories 年 --categories 月 --categories 日 --categories 号码上 --categories 号码下 --categories 出票人账号 --categories 小写金额"
 
-cd /home/mao/workspace/yolov5
+# 检测
+cd $YOLOV5_PATH
 python detect.py \
     --weights $WEIGHTS_PATH \
     --source $SOURCE_PATH \
@@ -24,39 +30,65 @@ python detect.py \
     --save-txt \
     --name $PROCESS_NAME
 
-# 跳转到目标文件夹
-cd /home/mao/workspace/yolov5/runs/detect/$PROCESS_NAME
+# 后处理
+DETECT_PATH="$YOLOV5_PATH/runs/detect/$PROCESS_NAME"
+cd $DETECT_PATH
 
-# 创建一个名为origin的新文件夹
 mkdir origin
-
-# 移动所有jpg文件到origin文件夹
 mv ./*.jpg origin
-
-# 移动labels文件夹下的所有内容到origin文件夹
 mv ./labels/* origin
-
-# 删除labels文件夹
 rm -rf ./labels
 
-# 跳转到数据格式转换的脚本所在的目录
-cd /home/mao/workspace/code_docs/yolov5/数据格式转换
-
-# 运行python脚本进行格式转换
+# 数据格式转换
+cd $WORKSPACE_PATH/code_docs/yolov5/数据格式转换
 python convert_yolo_to_voc.py \
-    --folder /home/mao/workspace/yolov5/runs/detect/$PROCESS_NAME/origin \
+    --folder $DETECT_PATH/origin \
     --classes $PREDEFINE_CLASSES_PATH
 
-# 删除origin文件夹中的所有txt文件
-rm /home/mao/workspace/yolov5/runs/detect/$PROCESS_NAME/origin/*.txt
+rm $DETECT_PATH/origin/*.txt
 
-cd /home/mao/workspace/code_docs/数据集构建
+# 过滤误分类样本
+cd $WORKSPACE_PATH/code_docs/数据集构建
 python filter_misclassification_samples.py \
-    --root_dir /home/mao/workspace/yolov5/runs/detect/$PROCESS_NAME/origin \
-    --dest_dir /home/mao/workspace/yolov5/runs/detect/$PROCESS_NAME/filter_misclassification
+    --root_dir $DETECT_PATH/origin \
+    --dest_dir $DETECT_PATH/filter_misclassification
+
+cd $DETECT_PATH/filter_misclassification
+if ls *.jpg 1> /dev/null 2>&1; then
+    rm *.jpg
+fi
+
+# 文件拷贝
+cd $WORKSPACE_PATH/code_docs/文件拷贝
+python copy_common_named_files.py \
+    --folder_list_A $SOURCE_PATH \
+    --folder_list_B $DETECT_PATH/filter_misclassification \
+    --target_path $DETECT_PATH/filter_misclassification
+
+cd $DETECT_PATH/filter_misclassification
+if ls *.xml 1> /dev/null 2>&1; then
+    rm *.xml
+fi
 
 # 使用变量替代硬编码的类别参数
+cd $WORKSPACE_PATH/code_docs/数据集构建
 python filter_misdetection_samples.py \
-    --root_dir "/home/mao/workspace/yolov5/runs/detect/$PROCESS_NAME/origin" \
-    --dest_dir "/home/mao/workspace/yolov5/runs/detect/$PROCESS_NAME/filter_misdetection" \
+    --root_dir "$DETECT_PATH/origin" \
+    --dest_dir "$DETECT_PATH/filter_misdetection" \
     $CATEGORIES
+
+cd $DETECT_PATH/filter_misdetection
+if ls *.jpg 1> /dev/null 2>&1; then
+    rm *.jpg
+fi
+
+cd $WORKSPACE_PATH/code_docs/文件拷贝
+python copy_common_named_files.py \
+    --folder_list_A $SOURCE_PATH \
+    --folder_list_B $DETECT_PATH/filter_misdetection \
+    --target_path $DETECT_PATH/filter_misdetection
+
+cd $DETECT_PATH/filter_misdetection
+if ls *.xml 1> /dev/null 2>&1; then
+    rm *.xml
+fi
